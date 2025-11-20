@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LDMS - Eco-Smart Landslide Monitoring</title>
+    <title>LandBud - Home</title>
     <link rel="stylesheet" href="landing.css" />
     <link
       rel="stylesheet"
@@ -29,7 +29,7 @@
     <nav class="navbar">
       <div class="logo">
         <i class="fas fa-leaf"></i>
-        <span>LDMS</span>
+        <span>LandBud</span>
       </div>
       <div class="nav-links">
         <a href="#how-it-works">How It Works</a>
@@ -66,32 +66,7 @@
       </div>
 
       <div class="hero-visual">
-        <div class="eco-card">
-          <div class="card-header">
-            <i class="fas fa-tree"></i>
-            <span>Live Environmental Data</span>
-          </div>
-          <div class="eco-stat">
-            <div class="stat-icon"><i class="fas fa-tint"></i></div>
-            <div class="stat-info">
-              <span class="label">Soil Health</span>
-              <span class="value">Stable</span>
-            </div>
-            <div class="stat-bar">
-              <div class="fill" style="width: 85%"></div>
-            </div>
-          </div>
-          <div class="eco-stat">
-            <div class="stat-icon"><i class="fas fa-cloud-sun-rain"></i></div>
-            <div class="stat-info">
-              <span class="label">Precipitation</span>
-              <span class="value">Low Risk</span>
-            </div>
-            <div class="stat-bar">
-              <div class="fill" style="width: 25%"></div>
-            </div>
-          </div>
-        </div>
+        <!-- Live data widget removed -->
       </div>
     </main>
 
@@ -230,6 +205,43 @@
       </div>
     </section>
 
+    <section id="team" class="section alt-bg">
+      <div class="section-header">
+        <h2>Meet the Team</h2>
+        <p>The minds behind the LandBud project.</p>
+      </div>
+      <div class="team-grid">
+        <div class="team-member">
+          <div class="member-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <h3>Hamood Thariq</h3>
+          <p class="member-role">IoT, Full-Stack & Mobile Developer</p>
+        </div>
+        <div class="team-member">
+          <div class="member-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <h3>Akhila Bhanuka</h3>
+          <p class="member-role">IoT and UI/UX Engineer</p>
+        </div>
+        <div class="team-member">
+          <div class="member-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <h3>Sanduni Nishshanka</h3>
+          <p class="member-role">Technical Writer</p>
+        </div>
+        <div class="team-member">
+          <div class="member-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <h3>Mohamed Musthaq</h3>
+          <p class="member-role">IoT and Full-Stack Developer</p>
+        </div>
+      </div>
+    </section>
+
     <footer id="contact">
       <div class="footer-content">
         <div class="footer-logo"><i class="fas fa-leaf"></i> LDMS</div>
@@ -280,7 +292,7 @@
 
       document
         .querySelectorAll(
-          ".process-step, .impact-card, .tech-item, .gallery-item"
+          ".process-step, .impact-card, .tech-item, .gallery-item, .team-member"
         )
         .forEach((el) => observer.observe(el));
 
