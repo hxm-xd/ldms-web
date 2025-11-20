@@ -140,15 +140,16 @@ function initializeEventListeners() {
             document.querySelector('[data-section="overview"]').click();
         });
     }
-
-    // Request browser notification permission
-    if ("Notification" in window) {
-        Notification.requestPermission();
-    }
 }
 
 function handleLogin(e) {
     e.preventDefault();
+
+    // Request notification permission on user interaction
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
+
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
@@ -392,13 +393,15 @@ const NotificationSystem = {
         const toast = document.createElement('div');
         toast.className = 'notification critical';
         
+        const safeName = escapeHtml(sensor.nodeName);
+
         toast.innerHTML = `
             <div class="notification-icon">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
             <div class="notification-content">
                 <div class="notification-title">High Threat Detected</div>
-                <div class="notification-message">Sensor <strong>${sensor.nodeName}</strong> is reporting critical levels.</div>
+                <div class="notification-message">Sensor <strong>${safeName}</strong> is reporting critical levels.</div>
                 <div class="notification-sensor">
                     <i class="fas fa-tint"></i> ${sensor.soilMoisture.toFixed(1)}% | 
                     <i class="fas fa-compress-arrows-alt"></i> ${sensor.tilt.toFixed(1)}°
@@ -547,6 +550,17 @@ function renderSensors() {
     }
 }
 
+// Helper to prevent XSS
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 function createSensorCard(sensor) {
     const threatLevel = getThreatLevel(sensor);
     const card = document.createElement('div');
@@ -558,13 +572,16 @@ function createSensorCard(sensor) {
     card.className = `sensor-card ${statusClass}`;
     card.onclick = () => selectSensor(sensor);
     
+    // Sanitize inputs
+    const safeName = escapeHtml(sensor.nodeName || 'Unknown Node');
+    
     card.innerHTML = `
         <div class="sensor-header">
             <div class="sensor-icon">
                 <i class="fas fa-microchip"></i>
             </div>
             <div class="sensor-info">
-                <h3>${sensor.nodeName || 'Unknown Node'}</h3>
+                <h3>${safeName}</h3>
                 <div class="sensor-status ${statusClass}">
                     <i class="fas fa-circle"></i>
                     <span class="status-text">${threatLevel} Risk</span>
@@ -590,9 +607,9 @@ function createSensorCard(sensor) {
             </div>
         </div>
         <div class="sensor-footer" style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
-            Last updated: ${sensor.timestamp || 'Unknown'}
+            Last updated: ${escapeHtml(sensor.timestamp || 'Unknown')}
         </div>
-        <button class="view-details-btn" onclick="event.stopPropagation(); showSensorDetails('${sensor.nodeName}')">
+        <button class="view-details-btn" onclick="event.stopPropagation(); showSensorDetails('${safeName}')">
             <i class="fas fa-chart-bar"></i> View Details
         </button>
     `;
@@ -915,12 +932,14 @@ function updateMapMarkers() {
                     iconAnchor: [12, 12]
                 });
 
+                const safeName = escapeHtml(sensor.nodeName || 'Sensor Node');
+
                 const marker = L.marker([lat, lng], { icon: icon }).addTo(map);
 
                 // Custom Popup Content
                 const popupContent = `
                     <div class="popup-header">
-                        <h3>${sensor.nodeName || 'Sensor Node'}</h3>
+                        <h3>${safeName}</h3>
                         <span class="popup-badge ${badgeClass}">${threatLevel} Risk</span>
                     </div>
                     <div class="popup-body">
@@ -938,7 +957,7 @@ function updateMapMarkers() {
                         </div>
                     </div>
                     <div class="popup-actions">
-                        <button class="popup-btn" onclick="showSensorDetails('${sensor.nodeName}')">
+                        <button class="popup-btn" onclick="showSensorDetails('${safeName}')">
                             View Full Details
                         </button>
                     </div>
