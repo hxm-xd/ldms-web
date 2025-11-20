@@ -9,6 +9,17 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
     />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
@@ -92,6 +103,10 @@
           <a href="#overview" class="nav-item active" data-section="overview">
             <i class="fas fa-tachometer-alt"></i>
             <span>Overview</span>
+          </a>
+          <a href="#map" class="nav-item" data-section="map">
+            <i class="fas fa-map-marked-alt"></i>
+            <span>Sensor Map</span>
           </a>
           <a href="#analytics" class="nav-item" data-section="analytics">
             <i class="fas fa-chart-line"></i>
@@ -189,6 +204,90 @@
               </div>
               <div class="chart-container">
                 <canvas id="sensorChart"></canvas>
+              </div>
+            </div>
+          </section>
+
+          <!-- Map Section -->
+          <section id="map" class="content-section">
+            <div class="section-header">
+              <h2>Sensor Locations</h2>
+            </div>
+            <div class="map-wrapper">
+              <div id="mapContainer"></div>
+            </div>
+          </section>
+
+          <!-- Sensor Details Section -->
+          <section id="sensor-details" class="content-section">
+            <div class="details-header">
+              <button id="backBtn" class="back-btn">
+                <i class="fas fa-arrow-left"></i> Back
+              </button>
+              <h2 id="detailSensorName">Sensor Details</h2>
+              <div id="detailSensorStatus" class="sensor-status-badge">
+                <i class="fas fa-circle"></i> <span>Normal</span>
+              </div>
+            </div>
+
+            <div class="details-grid">
+              <!-- Current Values -->
+              <div class="detail-card">
+                <div class="detail-icon"><i class="fas fa-water"></i></div>
+                <div class="detail-info">
+                  <h3>Soil Moisture</h3>
+                  <p id="detailSoil">0%</p>
+                </div>
+              </div>
+              <div class="detail-card">
+                <div class="detail-icon"><i class="fas fa-cloud-rain"></i></div>
+                <div class="detail-info">
+                  <h3>Rainfall</h3>
+                  <p id="detailRain">0%</p>
+                </div>
+              </div>
+              <div class="detail-card">
+                <div class="detail-icon">
+                  <i class="fas fa-compress-arrows-alt"></i>
+                </div>
+                <div class="detail-info">
+                  <h3>Tilt Angle</h3>
+                  <p id="detailTilt">0°</p>
+                </div>
+              </div>
+              <div class="detail-card">
+                <div class="detail-icon"><i class="fas fa-sun"></i></div>
+                <div class="detail-info">
+                  <h3>Light Level</h3>
+                  <p id="detailLight">0 lux</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="charts-grid">
+              <div class="chart-card">
+                <h3>Soil Moisture History</h3>
+                <div class="chart-wrapper-small">
+                  <canvas id="detailSoilChart"></canvas>
+                </div>
+              </div>
+              <div class="chart-card">
+                <h3>Rainfall History</h3>
+                <div class="chart-wrapper-small">
+                  <canvas id="detailRainChart"></canvas>
+                </div>
+              </div>
+              <div class="chart-card">
+                <h3>Tilt Angle History</h3>
+                <div class="chart-wrapper-small">
+                  <canvas id="detailTiltChart"></canvas>
+                </div>
+              </div>
+              <div class="chart-card">
+                <h3>Light Level History</h3>
+                <div class="chart-wrapper-small">
+                  <canvas id="detailLightChart"></canvas>
+                </div>
               </div>
             </div>
           </section>

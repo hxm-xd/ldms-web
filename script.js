@@ -6,10 +6,13 @@ let isAuthenticated = false;
 
 // Global variables
 let sensorChart = null;
+let map = null;
+let markers = {};
 let allSensors = []; // Array to store all sensor nodes
 let currentFilter = 'All';
 let selectedSensorNode = null;
 let sensorHistory = {}; // Store history for each sensor node
+let detailCharts = {}; // Store chart instances for details view
 
 // DOM elements
 let loadingScreen, loginPage, dashboard, loginForm, loginError, logoutBtn;
@@ -23,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initializeFirebase();
     initializeEventListeners();
     initializeTheme();
+    initializeMap();
     checkAuthentication();
     startUptimeCounter();
 });
@@ -127,6 +131,15 @@ function initializeEventListeners() {
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', closeSidebar);
     }
+
+    // Back button in details
+    const backBtn = document.getElementById('backBtn');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            // Go back to overview
+            document.querySelector('[data-section="overview"]').click();
+        });
+    }
 }
 
 function handleLogin(e) {
@@ -181,6 +194,13 @@ function handleNavigation(e) {
         section.classList.remove('active');
     });
     document.getElementById(section).classList.add('active');
+
+    // Refresh map if map section is shown
+    if (section === 'map' && map) {
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 100);
+    }
 
     // Close sidebar on mobile after navigation
     if (window.innerWidth <= 1024) {
@@ -354,12 +374,14 @@ function handleFirebaseData(snapshot) {
         });
         
         renderSensors();
+        updateMapMarkers();
         
         // Update chart if a sensor is selected
         if (selectedSensorNode) {
             const updatedNode = allSensors.find(s => s.nodeName === selectedSensorNode);
             if (updatedNode) {
                 updateChart(updatedNode);
+                updateSensorDetails(updatedNode);
             }
         }
         
@@ -464,9 +486,108 @@ function createSensorCard(sensor) {
         <div class="sensor-footer" style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
             Last updated: ${sensor.timestamp || 'Unknown'}
         </div>
+        <button class="view-details-btn" onclick="event.stopPropagation(); showSensorDetails('${sensor.nodeName}')">
+            <i class="fas fa-chart-bar"></i> View Details
+        </button>
     `;
     
     return card;
+}
+
+function showSensorDetails(nodeName) {
+    selectedSensorNode = nodeName;
+    const sensor = allSensors.find(s => s.nodeName === nodeName);
+    if (!sensor) return;
+
+    // Switch to details section
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    document.getElementById('sensor-details').classList.add('active');
+    
+    // Update nav active state (optional, maybe clear all active)
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // Initialize charts if needed
+    if (Object.keys(detailCharts).length === 0) {
+        initializeDetailCharts();
+    }
+
+    updateSensorDetails(sensor);
+}
+
+function updateSensorDetails(sensor) {
+    // Update header
+    document.getElementById('detailSensorName').textContent = sensor.nodeName;
+    
+    const threatLevel = getThreatLevel(sensor);
+    const statusBadge = document.getElementById('detailSensorStatus');
+    statusBadge.className = `sensor-status-badge ${threatLevel === 'High' ? 'critical' : threatLevel === 'Medium' ? 'warning' : 'normal'}`;
+    statusBadge.innerHTML = `<i class="fas fa-circle"></i> <span>${threatLevel} Risk</span>`;
+
+    // Update current values
+    document.getElementById('detailSoil').textContent = `${(sensor.soilMoisture || 0).toFixed(1)}%`;
+    document.getElementById('detailRain').textContent = `${(sensor.rain || 0).toFixed(1)}%`;
+    document.getElementById('detailTilt').textContent = `${(sensor.tilt || 0).toFixed(1)}°`;
+    document.getElementById('detailLight').textContent = `${Math.round(sensor.light || 0)} lux`;
+
+    // Update charts
+    updateDetailCharts(sensor.nodeName);
+}
+
+function initializeDetailCharts() {
+    const chartConfig = (color, label) => ({
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: label,
+                data: [],
+                borderColor: color,
+                backgroundColor: color + '20', // 20% opacity
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { display: false },
+                y: { beginAtZero: true }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+        }
+    });
+
+    detailCharts.soil = new Chart(document.getElementById('detailSoilChart'), chartConfig('#588157', 'Soil Moisture'));
+    detailCharts.rain = new Chart(document.getElementById('detailRainChart'), chartConfig('#3A5A40', 'Rainfall'));
+    detailCharts.tilt = new Chart(document.getElementById('detailTiltChart'), chartConfig('#ef4444', 'Tilt Angle'));
+    detailCharts.light = new Chart(document.getElementById('detailLightChart'), chartConfig('#d97706', 'Light Level'));
+}
+
+function updateDetailCharts(nodeName) {
+    const history = sensorHistory[nodeName];
+    if (!history) return;
+
+    const updateChartData = (chart, data) => {
+        chart.data.labels = history.timestamps;
+        chart.data.datasets[0].data = data;
+        chart.update('none'); // Update without animation for performance
+    };
+
+    updateChartData(detailCharts.soil, history.soilMoisture);
+    updateChartData(detailCharts.rain, history.rain);
+    updateChartData(detailCharts.tilt, history.tilt);
+    updateChartData(detailCharts.light, history.light);
 }
 
 function selectSensor(sensor) {
@@ -633,6 +754,80 @@ function initializeChart() {
             }
         }
     });
+}
+
+// Map initialization
+function initializeMap() {
+    const mapContainer = document.getElementById('mapContainer');
+    if (!mapContainer) return;
+
+    // Default center (Sri Lanka)
+    const defaultCenter = [7.8731, 80.7718];
+    
+    map = L.map('mapContainer').setView(defaultCenter, 8);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+}
+
+function updateMapMarkers() {
+    if (!map) return;
+
+    // Clear existing markers
+    Object.values(markers).forEach(marker => map.removeLayer(marker));
+    markers = {};
+
+    const bounds = [];
+
+    allSensors.forEach(sensor => {
+        if (sensor.latitude && sensor.longitude) {
+            const lat = parseFloat(sensor.latitude);
+            const lng = parseFloat(sensor.longitude);
+            
+            if (!isNaN(lat) && !isNaN(lng)) {
+                const threatLevel = getThreatLevel(sensor);
+                let color = '#588157'; // Low - Fern Green
+                if (threatLevel === 'High') color = '#ef4444';
+                else if (threatLevel === 'Medium') color = '#f97316';
+
+                const marker = L.circleMarker([lat, lng], {
+                    radius: 10,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map);
+
+                marker.bindPopup(`
+                    <b>${sensor.nodeName || 'Sensor Node'}</b><br>
+                    Status: ${threatLevel}<br>
+                    Soil: ${(sensor.soilMoisture || 0).toFixed(1)}%<br>
+                    Rain: ${(sensor.rain || 0).toFixed(1)}%<br>
+                    Tilt: ${(sensor.tilt || 0).toFixed(1)}°<br>
+                    <button onclick="showSensorDetails('${sensor.nodeName}')" style="
+                        margin-top: 8px;
+                        background: #588157;
+                        color: white;
+                        border: none;
+                        padding: 4px 8px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        width: 100%;
+                    ">View Details</button>
+                `);
+
+                markers[sensor.nodeName] = marker;
+                bounds.push([lat, lng]);
+            }
+        }
+    });
+
+    // Fit bounds if we have markers
+    if (bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+    }
 }
 
 // Export functions
