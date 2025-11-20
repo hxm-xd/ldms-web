@@ -40,6 +40,11 @@
     </nav>
 
     <main class="hero-section">
+      <img
+        src="assets/hero background.jpg"
+        class="hero-bg-image"
+        alt="Landslide Monitoring Background"
+      />
       <div class="hero-content">
         <div class="badge">
           <span class="pulse"></span> Eco-Smart Protection
@@ -188,6 +193,43 @@
       </div>
     </section>
 
+    <section id="hardware" class="section alt-bg">
+      <div class="section-header">
+        <h2>Inside the Technology</h2>
+        <p>A look at the hardware powering our solution.</p>
+      </div>
+      <div class="gallery-grid">
+        <div class="gallery-item">
+          <img src="assets/circuit.jpg" alt="Circuit Design" />
+          <div class="gallery-caption">Circuit Design</div>
+        </div>
+        <div class="gallery-item">
+          <img src="assets/inside1.jpg" alt="Internal Components" />
+          <div class="gallery-caption">Internal Components</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="behind-scenes" class="section">
+      <div class="section-header">
+        <h2>Behind the Scenes</h2>
+        <p>The development journey of LDMS.</p>
+      </div>
+      <div class="gallery-grid">
+        <div class="gallery-item">
+          <img src="assets/behindScenes.jpg" alt="Development Process" />
+          <div class="gallery-caption">Development Process</div>
+        </div>
+        <div class="gallery-item">
+          <video controls>
+            <source src="assets/progressVid.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+          <div class="gallery-caption">Project Progress</div>
+        </div>
+      </div>
+    </section>
+
     <footer id="contact">
       <div class="footer-content">
         <div class="footer-logo"><i class="fas fa-leaf"></i> LDMS</div>
@@ -215,6 +257,18 @@
       </div>
     </footer>
 
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="lightbox">
+      <span class="close-lightbox">&times;</span>
+      <div class="lightbox-content">
+        <img id="lightbox-img" src="" alt="Enlarged Image" />
+        <video id="lightbox-video" controls>
+          <source src="" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    </div>
+
     <script>
       const observer = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
@@ -225,8 +279,49 @@
       });
 
       document
-        .querySelectorAll(".process-step, .impact-card, .tech-item")
+        .querySelectorAll(
+          ".process-step, .impact-card, .tech-item, .gallery-item"
+        )
         .forEach((el) => observer.observe(el));
+
+      // Lightbox functionality
+      const lightbox = document.getElementById("lightbox");
+      const lightboxImg = document.getElementById("lightbox-img");
+      const lightboxVideo = document.getElementById("lightbox-video");
+      const closeBtn = document.querySelector(".close-lightbox");
+
+      document.querySelectorAll(".gallery-item").forEach((item) => {
+        item.addEventListener("click", () => {
+          const img = item.querySelector("img");
+          const video = item.querySelector("video");
+
+          if (img) {
+            lightbox.style.display = "block";
+            lightboxImg.style.display = "block";
+            lightboxVideo.style.display = "none";
+            lightboxImg.src = img.src;
+          } else if (video) {
+            lightbox.style.display = "block";
+            lightboxImg.style.display = "none";
+            lightboxVideo.style.display = "block";
+            lightboxVideo.querySelector("source").src =
+              video.querySelector("source").src;
+            lightboxVideo.load();
+          }
+        });
+      });
+
+      closeBtn.addEventListener("click", () => {
+        lightbox.style.display = "none";
+        lightboxVideo.pause();
+      });
+
+      lightbox.addEventListener("click", (e) => {
+        if (e.target === lightbox) {
+          lightbox.style.display = "none";
+          lightboxVideo.pause();
+        }
+      });
     </script>
   </body>
 </html>
