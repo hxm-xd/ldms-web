@@ -47,4 +47,4 @@ app.*.map.json
 firebase-config.js
 .env
 
-/arduino
+arduino/
