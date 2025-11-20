@@ -787,36 +787,63 @@ function updateMapMarkers() {
             
             if (!isNaN(lat) && !isNaN(lng)) {
                 const threatLevel = getThreatLevel(sensor);
-                let color = '#588157'; // Low - Fern Green
-                if (threatLevel === 'High') color = '#ef4444';
-                else if (threatLevel === 'Medium') color = '#f97316';
+                let markerClass = 'marker-low';
+                let badgeClass = 'low';
+                
+                if (threatLevel === 'High') {
+                    markerClass = 'marker-high';
+                    badgeClass = 'high';
+                } else if (threatLevel === 'Medium') {
+                    markerClass = 'marker-medium';
+                    badgeClass = 'medium';
+                }
 
-                const marker = L.circleMarker([lat, lng], {
-                    radius: 10,
-                    fillColor: color,
-                    color: '#fff',
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.8
-                }).addTo(map);
+                // Create custom animated icon
+                const icon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div class="map-marker ${markerClass}">
+                            <div class="ring"></div>
+                            <div class="dot"></div>
+                           </div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
 
-                marker.bindPopup(`
-                    <b>${sensor.nodeName || 'Sensor Node'}</b><br>
-                    Status: ${threatLevel}<br>
-                    Soil: ${(sensor.soilMoisture || 0).toFixed(1)}%<br>
-                    Rain: ${(sensor.rain || 0).toFixed(1)}%<br>
-                    Tilt: ${(sensor.tilt || 0).toFixed(1)}°<br>
-                    <button onclick="showSensorDetails('${sensor.nodeName}')" style="
-                        margin-top: 8px;
-                        background: #588157;
-                        color: white;
-                        border: none;
-                        padding: 4px 8px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        width: 100%;
-                    ">View Details</button>
-                `);
+                const marker = L.marker([lat, lng], { icon: icon }).addTo(map);
+
+                // Custom Popup Content
+                const popupContent = `
+                    <div class="popup-header">
+                        <h3>${sensor.nodeName || 'Sensor Node'}</h3>
+                        <span class="popup-badge ${badgeClass}">${threatLevel} Risk</span>
+                    </div>
+                    <div class="popup-body">
+                        <div class="popup-row">
+                            <span class="popup-label">Soil Moisture</span>
+                            <span class="popup-value">${(sensor.soilMoisture || 0).toFixed(1)}%</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Rainfall</span>
+                            <span class="popup-value">${(sensor.rain || 0).toFixed(1)}%</span>
+                        </div>
+                        <div class="popup-row">
+                            <span class="popup-label">Tilt Angle</span>
+                            <span class="popup-value">${(sensor.tilt || 0).toFixed(1)}°</span>
+                        </div>
+                    </div>
+                    <div class="popup-actions">
+                        <button class="popup-btn" onclick="showSensorDetails('${sensor.nodeName}')">
+                            View Full Details
+                        </button>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent, {
+                    className: 'custom-popup',
+                    closeButton: false,
+                    maxWidth: 300,
+                    minWidth: 260
+                });
 
                 markers[sensor.nodeName] = marker;
                 bounds.push([lat, lng]);
