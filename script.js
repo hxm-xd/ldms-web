@@ -140,6 +140,11 @@ function initializeEventListeners() {
             document.querySelector('[data-section="overview"]').click();
         });
     }
+
+    // Request browser notification permission
+    if ("Notification" in window) {
+        Notification.requestPermission();
+    }
 }
 
 function handleLogin(e) {
@@ -352,6 +357,104 @@ function disconnectFirebase() {
     updateConnectionStatus('Disconnected', 'disconnected');
 }
 
+// Notification System
+const NotificationSystem = {
+    history: {},
+    cooldown: 300000, // 5 minutes cooldown for same sensor
+
+    check: function(sensors) {
+        sensors.forEach(sensor => {
+            const threatLevel = getThreatLevel(sensor);
+            const lastState = this.history[sensor.nodeName] || { lastLevel: 'Low', lastNotification: 0 };
+            const now = Date.now();
+
+            // Trigger if High threat and (newly High OR cooldown passed)
+            if (threatLevel === 'High') {
+                if (lastState.lastLevel !== 'High' || (now - lastState.lastNotification > this.cooldown)) {
+                    this.trigger(sensor);
+                    this.history[sensor.nodeName] = { lastLevel: 'High', lastNotification: now };
+                }
+            } else {
+                this.history[sensor.nodeName] = { ...lastState, lastLevel: threatLevel };
+            }
+        });
+    },
+
+    trigger: function(sensor) {
+        this.showToast(sensor);
+        this.playAlertSound();
+        this.sendBrowserNotification(sensor);
+    },
+
+    showToast: function(sensor) {
+        if (!notificationsContainer) return;
+
+        const toast = document.createElement('div');
+        toast.className = 'notification critical';
+        
+        toast.innerHTML = `
+            <div class="notification-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="notification-content">
+                <div class="notification-title">High Threat Detected</div>
+                <div class="notification-message">Sensor <strong>${sensor.nodeName}</strong> is reporting critical levels.</div>
+                <div class="notification-sensor">
+                    <i class="fas fa-tint"></i> ${sensor.soilMoisture.toFixed(1)}% | 
+                    <i class="fas fa-compress-arrows-alt"></i> ${sensor.tilt.toFixed(1)}°
+                </div>
+            </div>
+            <button class="notification-close" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+
+        notificationsContainer.appendChild(toast);
+
+        // Force reflow for animation
+        requestAnimationFrame(() => toast.classList.add('show'));
+
+        // Auto remove
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 10000);
+    },
+
+    playAlertSound: function() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(440, ctx.currentTime);
+            osc.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.1);
+            osc.frequency.linearRampToValueAtTime(440, ctx.currentTime + 0.2);
+
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+
+            osc.start();
+            osc.stop(ctx.currentTime + 0.5);
+        } catch (e) {
+            console.warn('Audio playback failed', e);
+        }
+    },
+
+    sendBrowserNotification: function(sensor) {
+        if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+            new Notification("High Threat Alert!", {
+                body: `${sensor.nodeName}: Soil ${sensor.soilMoisture.toFixed(1)}%, Tilt ${sensor.tilt.toFixed(1)}°`,
+                icon: 'https://cdn-icons-png.flaticon.com/512/10337/10337046.png' // Generic warning icon
+            });
+        }
+    }
+};
+
 function handleFirebaseData(snapshot) {
     const data = snapshot.val();
     if (data) {
@@ -375,6 +478,9 @@ function handleFirebaseData(snapshot) {
         
         renderSensors();
         updateMapMarkers();
+        
+        // Check for threats
+        NotificationSystem.check(allSensors);
         
         // Update chart if a sensor is selected
         if (selectedSensorNode) {
