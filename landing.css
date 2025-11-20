@@ -817,7 +817,111 @@ footer {
     }
 }
 
-/* Responsive */
+/* Solution Section */
+.solution-container {
+    display: flex;
+    align-items: center;
+    gap: 4rem;
+}
+
+.solution-content {
+    flex: 1;
+}
+
+.solution-content h2 {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #fff 0%, #34d399 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.solution-text {
+    font-size: 1.1rem;
+    color: var(--text-dim);
+    line-height: 1.8;
+    margin-bottom: 2rem;
+}
+
+.solution-features {
+    list-style: none;
+}
+
+.solution-features li {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    color: var(--text-light);
+}
+
+.solution-features i {
+    color: var(--primary);
+}
+
+.solution-visual {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.device-mockup {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(5, 150, 105, 0.2) 0%, transparent 70%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.sensor-node {
+    width: 120px;
+    height: 120px;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: #34d399;
+    box-shadow: 0 0 30px rgba(5, 150, 105, 0.3);
+    position: relative;
+    z-index: 2;
+    animation: float 6s ease-in-out infinite;
+}
+
+.signal-waves {
+    position: absolute;
+    top: -30px;
+    right: -20px;
+    font-size: 1.5rem;
+    color: var(--accent);
+    animation: pulse 2s infinite;
+}
+
+.ground-layers {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 200px;
+}
+
+.ground-layers span {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.ground-layers span:nth-child(1) { width: 100%; }
+.ground-layers span:nth-child(2) { width: 80%; margin: 0 auto; }
+.ground-layers span:nth-child(3) { width: 60%; margin: 0 auto; }
+
 @media (max-width: 768px) {
     .hero-section {
         flex-direction: column;
@@ -836,4 +940,15 @@ footer {
     .nav-links {
         display: none;
     }
+
+    .solution-container {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .solution-features li {
+        justify-content: center;
+    }
 }
+
+/* Problem Section */
