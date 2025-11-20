@@ -116,6 +116,7 @@ function initializeElements() {
     // Dashboard elements
     connectionStatus = document.getElementById('connectionStatus');
     sidebarToggle = document.getElementById('sidebarToggle');
+    const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
     pageTitle = document.getElementById('pageTitle');
     lastUpdate = document.getElementById('lastUpdate');
     updateRate = document.getElementById('updateRate');
@@ -131,6 +132,9 @@ function initializeElements() {
 
     // Sidebar overlay
     sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    // Store mobile toggle for event listener
+    window.mobileSidebarToggle = mobileSidebarToggle;
 }
 
 function initializeFirebase() {
@@ -158,7 +162,12 @@ function initializeEventListeners() {
     logoutBtn.addEventListener('click', handleLogout);
 
     // Sidebar toggle
-    sidebarToggle.addEventListener('click', toggleSidebar);
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', toggleSidebar);
+    }
+    if (window.mobileSidebarToggle) {
+        window.mobileSidebarToggle.addEventListener('click', toggleSidebar);
+    }
 
     // Navigation
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -870,12 +879,12 @@ function initializeChart() {
                 {
                     label: 'Rain (%)',
                     data: [],
-                    borderColor: '#6366f1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    borderColor: '#059669',
+                    backgroundColor: 'rgba(5, 150, 105, 0.1)',
                     borderWidth: 3,
                     pointRadius: 4,
                     pointHoverRadius: 8,
-                    pointBackgroundColor: '#6366f1',
+                    pointBackgroundColor: '#059669',
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 2,
                     tension: 0.4,
@@ -886,12 +895,12 @@ function initializeChart() {
                 {
                     label: 'Light (lux)',
                     data: [],
-                    borderColor: '#f59e0b',
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    borderColor: '#d97706',
+                    backgroundColor: 'rgba(217, 119, 6, 0.1)',
                     borderWidth: 3,
                     pointRadius: 4,
                     pointHoverRadius: 8,
-                    pointBackgroundColor: '#f59e0b',
+                    pointBackgroundColor: '#d97706',
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 2,
                     tension: 0.4,
