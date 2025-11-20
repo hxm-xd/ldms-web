@@ -15,11 +15,12 @@ The LDMS project provides a complete solution for monitoring landslide-prone are
 
 ```
 LDMS - 2/
-├── web_app/                    # Web Dashboard Application
-│   ├── index.html             # Main web dashboard
-│   ├── script.js              # JavaScript functionality
-│   ├── styles.css             # CSS styling
-│   └── firebase-config.js     # Firebase configuration
+├── index.html                 # Main web dashboard
+├── script.js                  # JavaScript functionality
+├── styles.css                 # CSS styling
+├── landing.css                # Landing page styling
+├── firebase-config.js         # Firebase configuration
+├── assets/                    # Web assets (images, videos)
 │
 ├── android_app/               # Native Android Application (Kotlin)
 │   ├── app/                   # Android app module
@@ -58,7 +59,7 @@ LDMS - 2/
 
 ```bash
 # Open the web dashboard
-open web_app/index.html
+open index.html
 ```
 
 ### 2. Android Mobile App
@@ -191,7 +192,8 @@ Both applications connect to the same Firebase project:
 
 ### Web App
 
-Deploy the `web_app/` folder to any web hosting service.
+Deploy the root folder to any web hosting service (GitHub Pages, Netlify, Vercel).
+Ensure `index.html` is set as the entry point.
 
 ### Android App
 
