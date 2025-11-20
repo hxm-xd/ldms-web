@@ -6,99 +6,22 @@ let isAuthenticated = false;
 
 // Global variables
 let sensorChart = null;
-let sensorData = {
-    soilMoisture: [],
-    rain: [],
-    light: [],
-    tilt: [],
-    accelX: [],
-    accelY: [],
-    accelZ: [],
-    gyroX: [],
-    gyroY: [],
-    gyroZ: [],
-    magX: [],
-    magY: [],
-    magZ: []
-};
-
-// Enhanced sensor thresholds with notification settings
-const thresholds = {
-    soilMoisture: {
-        min: 0,
-        max: 100,
-        warning: 70,
-        danger: 85,
-        critical: 95,
-        notification: {
-            warning: 'Soil moisture is getting high',
-            danger: 'Soil moisture is critically high - drainage needed!',
-            critical: 'EMERGENCY: Soil is waterlogged!'
-        }
-    },
-    rain: {
-        min: 0,
-        max: 100,
-        warning: 30,
-        danger: 40,
-        critical: 50,
-        notification: {
-            warning: 'Rain detected - moderate level',
-            danger: 'Heavy rain detected!',
-            critical: 'SEVERE RAIN ALERT!'
-        }
-    },
-    light: {
-        min: 0,
-        max: 65535,
-        warning: 10,
-        danger: 5,
-        critical: 3,
-        notification: {
-            warning: 'Light level is getting low',
-            danger: 'Very low light detected!',
-            critical: 'EMERGENCY: System may be underground!'
-        }
-    },
-    tilt: {
-        min: 0,
-        max: 90,
-        warning: 20,
-        danger: 25,
-        critical: 30,
-        notification: {
-            warning: 'Device tilt detected',
-            danger: 'Significant tilt detected!',
-            critical: 'CRITICAL TILT ALERT!'
-        }
-    },
-    gyroMovement: {
-        warning: 5,
-        danger: 10,
-        critical: 15,
-        notification: {
-            warning: 'Gyroscope movement detected',
-            danger: 'Significant gyroscope movement!',
-            critical: 'CRITICAL GYROSCOPE MOVEMENT!'
-        }
-    }
-};
-
-// Notification tracking to prevent spam
-let notificationHistory = {};
-let lastGyroValues = { x: 0, y: 0, z: 0 };
+let allSensors = []; // Array to store all sensor nodes
+let currentFilter = 'All';
+let selectedSensorNode = null;
+let sensorHistory = {}; // Store history for each sensor node
 
 // DOM elements
 let loadingScreen, loginPage, dashboard, loginForm, loginError, logoutBtn;
 let connectionStatus, sidebarToggle, pageTitle, lastUpdate, updateRate;
 let totalReadings, avgUpdateRate, uptime, notificationsContainer, themeToggle, sidebarOverlay;
+let sensorsGrid, chartSection, chartTitle, closeChartBtn;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function () {
     initializeElements();
     initializeFirebase();
     initializeEventListeners();
-    initializeChart();
     initializeTheme();
     checkAuthentication();
     startUptimeCounter();
@@ -121,6 +44,10 @@ function initializeElements() {
     lastUpdate = document.getElementById('lastUpdate');
     updateRate = document.getElementById('updateRate');
     notificationsContainer = document.getElementById('notificationsContainer');
+    sensorsGrid = document.getElementById('sensorsGrid');
+    chartSection = document.getElementById('chartSection');
+    chartTitle = document.getElementById('chartTitle');
+    closeChartBtn = document.getElementById('closeChartBtn');
 
     // Analytics elements
     totalReadings = document.getElementById('totalReadings');
@@ -174,10 +101,22 @@ function initializeEventListeners() {
         item.addEventListener('click', handleNavigation);
     });
 
+    // Filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', handleFilterChange);
+    });
+
     // Chart controls
-    document.querySelectorAll('.chart-btn').forEach(btn => {
+    document.querySelectorAll('.chart-btn:not(.close-chart-btn)').forEach(btn => {
         btn.addEventListener('click', handleChartRangeChange);
     });
+
+    if (closeChartBtn) {
+        closeChartBtn.addEventListener('click', () => {
+            chartSection.classList.add('hidden');
+            selectedSensorNode = null;
+        });
+    }
 
     // Theme toggle
     if (themeToggle) {
@@ -249,6 +188,19 @@ function handleNavigation(e) {
     }
 }
 
+function handleFilterChange(e) {
+    const filter = e.target.getAttribute('data-filter');
+    currentFilter = filter;
+
+    // Update active button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    e.target.classList.add('active');
+
+    renderSensors();
+}
+
 function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
     sidebar.classList.toggle('open');
@@ -272,7 +224,7 @@ function handleChartRangeChange(e) {
     const range = parseInt(e.target.getAttribute('data-range'));
 
     // Update active button
-    document.querySelectorAll('.chart-btn').forEach(btn => {
+    document.querySelectorAll('.chart-btn:not(.close-chart-btn)').forEach(btn => {
         btn.classList.remove('active');
     });
     e.target.classList.add('active');
@@ -283,13 +235,10 @@ function handleChartRangeChange(e) {
 function checkAuthentication() {
     firebase.auth().onAuthStateChanged((user) => {
         if (user) {
-            // User is signed in, see docs for a list of available properties
-            // https://firebase.google.com/docs/reference/js/firebase.User
             isAuthenticated = true;
             showDashboard();
             connectFirebase();
         } else {
-            // User is signed out
             isAuthenticated = false;
             disconnectFirebase();
             showLogin();
@@ -386,7 +335,36 @@ function disconnectFirebase() {
 function handleFirebaseData(snapshot) {
     const data = snapshot.val();
     if (data) {
-        updateSensorData(data);
+        // Clear current list
+        allSensors = [];
+        
+        // Iterate through all children
+        Object.keys(data).forEach(key => {
+            if (key.startsWith('node_')) {
+                const sensorNode = data[key];
+                // Ensure nodeName is set
+                if (!sensorNode.nodeName) {
+                    sensorNode.nodeName = key;
+                }
+                allSensors.push(sensorNode);
+                
+                // Update history for charts
+                updateSensorHistory(sensorNode);
+            }
+        });
+        
+        renderSensors();
+        
+        // Update chart if a sensor is selected
+        if (selectedSensorNode) {
+            const updatedNode = allSensors.find(s => s.nodeName === selectedSensorNode);
+            if (updatedNode) {
+                updateChart(updatedNode);
+            }
+        }
+        
+        // Update timestamp
+        if (lastUpdate) lastUpdate.textContent = new Date().toLocaleTimeString();
     }
 }
 
@@ -402,453 +380,155 @@ function updateConnectionStatus(status, type) {
     }
 }
 
-// Update sensor data and UI
-function updateSensorData(data) {
-    const timestamp = new Date().toLocaleTimeString();
-
-    // Map ALL Arduino Firebase field names to sensor data
-    const sensorValues = {
-        timestamp: timestamp,
-        soilMoisture: data.soilMoisture || 0,
-        rain: data.rain || 0,
-        light: data.light || 0,
-        tilt: data.tilt || 0,
-        accelX: data.accelX || 0,
-        accelY: data.accelY || 0,
-        accelZ: data.accelZ || 0,
-        gyroX: data.gyroX || 0,
-        gyroY: data.gyroY || 0,
-        gyroZ: data.gyroZ || 0,
-        magX: data.magX || 0,
-        magY: data.magY || 0,
-        magZ: data.magZ || 0
-    };
-
-    // Add to sensor data arrays
-    Object.keys(sensorValues).forEach(key => {
-        if (key !== 'timestamp' && sensorData[key]) {
-            sensorData[key].push({ time: timestamp, value: sensorValues[key] });
-
-            // Keep only last 20 readings
-            if (sensorData[key].length > 20) {
-                sensorData[key].shift();
-            }
-        }
-    });
-
-    // Update UI for main sensors and check for notifications
-    updateSensorUI('soilMoisture', sensorValues.soilMoisture);
-    updateSensorUI('rain', sensorValues.rain);
-    updateSensorUI('light', sensorValues.light);
-    updateSensorUI('tilt', sensorValues.tilt);
-    updateSensorUI('gyroMovement', sensorValues.gyroX, sensorValues.gyroY, sensorValues.gyroZ);
-
-    // Check for threshold notifications
-    checkThresholdNotifications(sensorValues);
-
-    // Update ALL sensor values in analytics section
-    updateAllSensorValues(sensorValues);
-
-    // Update analytics
-    updateAnalytics();
-
-    // Update chart
-    updateChart();
-
-    // Update timestamps
-    if (lastUpdate) lastUpdate.textContent = timestamp;
-    if (updateRate) updateRate.textContent = '0.5 Hz';
-
-    console.log('ALL Sensor Data:', sensorValues);
+function getThreatLevel(sensor) {
+    const tilt = sensor.tilt || 0;
+    const soil = sensor.soilMoisture || 0;
+    
+    if (tilt > 15 || soil > 70) return "High";
+    if (tilt > 10 || soil > 50) return "Medium";
+    return "Low";
 }
 
-function updateSensorUI(sensorType, value, gyroY = 0, gyroZ = 0) {
-    const valueElement = document.getElementById(sensorType + 'Value');
-    const statusElement = document.getElementById(sensorType + 'Status');
-    const cardElement = document.getElementById(sensorType + 'Card');
-
-    if (!valueElement || !statusElement || !cardElement) {
+function renderSensors() {
+    if (!sensorsGrid) return;
+    
+    sensorsGrid.innerHTML = '';
+    
+    const filteredSensors = allSensors.filter(sensor => {
+        if (currentFilter === 'All') return true;
+        return getThreatLevel(sensor) === currentFilter;
+    });
+    
+    if (filteredSensors.length === 0) {
+        sensorsGrid.innerHTML = `
+            <div class="loading-placeholder">
+                <i class="fas fa-info-circle"></i>
+                <p>No sensors found matching filter "${currentFilter}"</p>
+            </div>
+        `;
         return;
     }
-
-    // Special handling for gyroscope movement
-    if (sensorType === 'gyroMovement') {
-        const gyroMovement = Math.sqrt(value * value + gyroY * gyroY + gyroZ * gyroZ);
-        valueElement.textContent = gyroMovement.toFixed(2);
-
-        const status = getSensorStatus(sensorType, gyroMovement);
-
-        // Update status
-        const statusText = statusElement.querySelector('.status-text');
-        if (statusText) {
-            statusText.textContent = status.text;
-        }
-
-        // Update status indicator
-        statusElement.className = `sensor-status ${status.class}`;
-        const statusIcon = statusElement.querySelector('i');
-        if (statusIcon) {
-            statusIcon.className = `fas fa-circle ${status.class}`;
-        }
-
-        // Update card styling
-        cardElement.className = `sensor-card ${status.class}`;
-
-        // Add update animation
-        cardElement.classList.add('updated');
-        setTimeout(() => {
-            cardElement.classList.remove('updated');
-        }, 300);
-
-        return;
-    }
-
-    // Update value with proper formatting
-    if (sensorType === 'light') {
-        valueElement.textContent = Math.round(value);
-    } else {
-        valueElement.textContent = value.toFixed(1);
-    }
-
-    // Determine status
-    const status = getSensorStatus(sensorType, value);
-
-    // Update status
-    const statusText = statusElement.querySelector('.status-text');
-    if (statusText) {
-        statusText.textContent = status.text;
-    }
-
-    // Update status indicator
-    statusElement.className = `sensor-status ${status.class}`;
-    const statusIcon = statusElement.querySelector('i');
-    if (statusIcon) {
-        statusIcon.className = `fas fa-circle ${status.class}`;
-    }
-
-    // Update card styling
-    cardElement.className = `sensor-card ${status.class}`;
-
-    // Add update animation
-    cardElement.classList.add('updated');
-    setTimeout(() => {
-        cardElement.classList.remove('updated');
-    }, 300);
-}
-
-function checkThresholdNotifications(sensorValues) {
-    Object.keys(thresholds).forEach(sensorType => {
-        if (sensorType === 'gyroMovement') {
-            // Calculate gyroscope movement magnitude
-            const gyroMovement = Math.sqrt(
-                sensorValues.gyroX * sensorValues.gyroX +
-                sensorValues.gyroY * sensorValues.gyroY +
-                sensorValues.gyroZ * sensorValues.gyroZ
-            );
-
-            const threshold = thresholds[sensorType];
-            let alertLevel = null;
-            let message = '';
-
-            if (gyroMovement >= threshold.critical) {
-                alertLevel = 'critical';
-                message = threshold.notification.critical;
-            } else if (gyroMovement >= threshold.danger) {
-                alertLevel = 'danger';
-                message = threshold.notification.danger;
-            } else if (gyroMovement >= threshold.warning) {
-                alertLevel = 'warning';
-                message = threshold.notification.warning;
-            }
-
-            // Show notification if threshold is met and not recently shown
-            if (alertLevel && message) {
-                const notificationKey = `${sensorType}_${alertLevel}`;
-                const now = Date.now();
-
-                // Check if we should show this notification (prevent spam)
-                if (!notificationHistory[notificationKey] ||
-                    (now - notificationHistory[notificationKey]) > 30000) { // 30 seconds
-
-                    showNotification(message, alertLevel, sensorType);
-                    notificationHistory[notificationKey] = now;
-                }
-            }
-
-            return;
-        }
-
-        const value = sensorValues[sensorType];
-        const threshold = thresholds[sensorType];
-
-        if (!threshold || !threshold.notification) return;
-
-        let alertLevel = null;
-        let message = '';
-
-        // Determine alert level based on updated thresholds
-        if (sensorType === 'soilMoisture') {
-            // Higher soil moisture is more dangerous
-            if (value >= threshold.critical) {
-                alertLevel = 'critical';
-                message = threshold.notification.critical;
-            } else if (value >= threshold.danger) {
-                alertLevel = 'danger';
-                message = threshold.notification.danger;
-            } else if (value >= threshold.warning) {
-                alertLevel = 'warning';
-                message = threshold.notification.warning;
-            }
-        } else if (sensorType === 'light') {
-            // Lower light is more dangerous (underground detection)
-            if (value <= threshold.critical) {
-                alertLevel = 'critical';
-                message = threshold.notification.critical;
-            } else if (value <= threshold.danger) {
-                alertLevel = 'danger';
-                message = threshold.notification.danger;
-            } else if (value <= threshold.warning) {
-                alertLevel = 'warning';
-                message = threshold.notification.warning;
-            }
-        } else {
-            // Higher values are more dangerous for rain and tilt
-            if (value >= threshold.critical) {
-                alertLevel = 'critical';
-                message = threshold.notification.critical;
-            } else if (value >= threshold.danger) {
-                alertLevel = 'danger';
-                message = threshold.notification.danger;
-            } else if (value >= threshold.warning) {
-                alertLevel = 'warning';
-                message = threshold.notification.warning;
-            }
-        }
-
-        // Show notification if threshold is met and not recently shown
-        if (alertLevel && message) {
-            const notificationKey = `${sensorType}_${alertLevel}`;
-            const now = Date.now();
-
-            // Check if we should show this notification (prevent spam)
-            if (!notificationHistory[notificationKey] ||
-                (now - notificationHistory[notificationKey]) > 30000) { // 30 seconds
-
-                showNotification(message, alertLevel, sensorType);
-                notificationHistory[notificationKey] = now;
-            }
-        }
+    
+    filteredSensors.forEach(sensor => {
+        const card = createSensorCard(sensor);
+        sensorsGrid.appendChild(card);
     });
-}
-
-function showNotification(message, level, sensorType) {
-    if (!notificationsContainer) return;
-
-    const notification = document.createElement('div');
-    notification.className = `notification ${level}`;
-    notification.innerHTML = `
-        <div class="notification-icon">
-            <i class="fas ${getNotificationIcon(level)}"></i>
-        </div>
-        <div class="notification-content">
-            <div class="notification-title">${getNotificationTitle(level)}</div>
-            <div class="notification-message">${message}</div>
-            <div class="notification-sensor">${getSensorDisplayName(sensorType)}</div>
-        </div>
-        <button class="notification-close" onclick="this.parentElement.remove()">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-
-    // Add to container
-    notificationsContainer.appendChild(notification);
-
-    // Auto-remove after 10 seconds
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
-        }
-    }, 10000);
-
-    // Add entrance animation
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 100);
-
-    console.log(`🔔 ${level.toUpperCase()} Notification: ${message}`);
-}
-
-function getNotificationIcon(level) {
-    const icons = {
-        warning: 'fa-exclamation-triangle',
-        danger: 'fa-exclamation-circle',
-        critical: 'fa-radiation'
-    };
-    return icons[level] || 'fa-info-circle';
-}
-
-function getNotificationTitle(level) {
-    const titles = {
-        warning: 'Warning',
-        danger: 'Alert',
-        critical: 'CRITICAL'
-    };
-    return titles[level] || 'Info';
-}
-
-function getSensorDisplayName(sensorType) {
-    const names = {
-        soilMoisture: 'Soil Moisture',
-        rain: 'Rain Sensor',
-        light: 'Light Sensor',
-        tilt: 'Tilt Sensor',
-        gyroMovement: 'Gyroscope Movement'
-    };
-    return names[sensorType] || sensorType;
-}
-
-function updateAllSensorValues(sensorValues) {
-    // Update all sensor values in the analytics section
-    const sensorElements = {
-        'soilMoisture': 'Soil Moisture',
-        'rain': 'Rain Level',
-        'light': 'Light Level',
-        'tilt': 'Tilt Angle',
-        'accelX': 'Accel X',
-        'accelY': 'Accel Y',
-        'accelZ': 'Accel Z',
-        'gyroX': 'Gyro X',
-        'gyroY': 'Gyro Y',
-        'gyroZ': 'Gyro Z',
-        'magX': 'Mag X',
-        'magY': 'Mag Y',
-        'magZ': 'Mag Z'
-    };
-
-    // Create or update sensor values display
-    let sensorValuesContainer = document.getElementById('allSensorValues');
-    if (!sensorValuesContainer) {
-        sensorValuesContainer = document.createElement('div');
-        sensorValuesContainer.id = 'allSensorValues';
-        sensorValuesContainer.className = 'all-sensor-values';
-
-        // Add to analytics section
-        const analyticsSection = document.getElementById('analytics');
-        if (analyticsSection) {
-            const analyticsGrid = analyticsSection.querySelector('.analytics-grid');
-            if (analyticsGrid) {
-                const newCard = document.createElement('div');
-                newCard.className = 'analytics-card';
-                newCard.innerHTML = `
-                    <h3>All Sensor Values</h3>
-                    <div id="allSensorValues" class="all-sensor-values"></div>
-                `;
-                analyticsGrid.appendChild(newCard);
-            }
-        }
-    }
-
-    // Update the container reference
-    sensorValuesContainer = document.getElementById('allSensorValues');
-    if (sensorValuesContainer) {
-        let html = '';
-        Object.keys(sensorElements).forEach(key => {
-            const value = sensorValues[key];
-            const label = sensorElements[key];
-            let unit = '';
-
-            // Add appropriate units
-            if (key.includes('accel') || key.includes('gyro') || key.includes('mag')) {
-                unit = key.includes('accel') ? ' g' : key.includes('gyro') ? ' °/s' : ' μT';
-            } else if (key === 'light') {
-                unit = ' lux';
-            } else if (key === 'tilt') {
-                unit = '°';
-            } else {
-                unit = '%';
-            }
-
-            // Format value
-            let displayValue;
-            if (key === 'light') {
-                displayValue = Math.round(value);
-            } else {
-                displayValue = value.toFixed(2);
-            }
-
-            html += `
-                <div class="sensor-value-item">
-                    <span class="sensor-label">${label}:</span>
-                    <span class="sensor-value">${displayValue}${unit}</span>
-                </div>
-            `;
-        });
-        sensorValuesContainer.innerHTML = html;
-    }
-}
-
-function getSensorStatus(sensorType, value) {
-    const threshold = thresholds[sensorType];
-
-    if (!threshold) {
-        return { text: 'Normal', class: 'normal' };
-    }
-
-    if (sensorType === 'soilMoisture') {
-        // Higher soil moisture is more dangerous
-        if (value >= threshold.critical) {
-            return { text: 'Critical', class: 'critical' };
-        } else if (value >= threshold.danger) {
-            return { text: 'Danger', class: 'danger' };
-        } else if (value >= threshold.warning) {
-            return { text: 'Warning', class: 'warning' };
-        } else {
-            return { text: 'Normal', class: 'normal' };
-        }
-    } else if (sensorType === 'light') {
-        // Lower light is more dangerous
-        if (value <= threshold.critical) {
-            return { text: 'Critical', class: 'critical' };
-        } else if (value <= threshold.danger) {
-            return { text: 'Danger', class: 'danger' };
-        } else if (value <= threshold.warning) {
-            return { text: 'Warning', class: 'warning' };
-        } else {
-            return { text: 'Normal', class: 'normal' };
-        }
-    } else if (sensorType === 'gyroMovement') {
-        // Higher gyroscope movement is more dangerous
-        if (value >= threshold.critical) {
-            return { text: 'Critical', class: 'critical' };
-        } else if (value >= threshold.danger) {
-            return { text: 'Danger', class: 'danger' };
-        } else if (value >= threshold.warning) {
-            return { text: 'Warning', class: 'warning' };
-        } else {
-            return { text: 'Normal', class: 'normal' };
-        }
-    } else {
-        // Higher values are more dangerous for rain and tilt
-        if (value >= threshold.critical) {
-            return { text: 'Critical', class: 'critical' };
-        } else if (value >= threshold.danger) {
-            return { text: 'Danger', class: 'danger' };
-        } else if (value >= threshold.warning) {
-            return { text: 'Warning', class: 'warning' };
-        } else {
-            return { text: 'Normal', class: 'normal' };
-        }
-    }
-}
-
-function updateAnalytics() {
+    
     if (totalReadings) {
-        totalReadings.textContent = sensorData.soilMoisture.length;
+        totalReadings.textContent = allSensors.length;
     }
+}
 
-    if (avgUpdateRate) {
-        avgUpdateRate.textContent = '0.5 Hz';
+function createSensorCard(sensor) {
+    const threatLevel = getThreatLevel(sensor);
+    const card = document.createElement('div');
+    
+    let statusClass = 'normal';
+    if (threatLevel === 'High') statusClass = 'critical';
+    else if (threatLevel === 'Medium') statusClass = 'warning';
+    
+    card.className = `sensor-card ${statusClass}`;
+    card.onclick = () => selectSensor(sensor);
+    
+    card.innerHTML = `
+        <div class="sensor-header">
+            <div class="sensor-icon">
+                <i class="fas fa-microchip"></i>
+            </div>
+            <div class="sensor-info">
+                <h3>${sensor.nodeName || 'Unknown Node'}</h3>
+                <div class="sensor-status ${statusClass}">
+                    <i class="fas fa-circle"></i>
+                    <span class="status-text">${threatLevel} Risk</span>
+                </div>
+            </div>
+        </div>
+        <div class="sensor-data-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="data-item">
+                <span class="label">Soil:</span>
+                <span class="value">${(sensor.soilMoisture || 0).toFixed(1)}%</span>
+            </div>
+            <div class="data-item">
+                <span class="label">Rain:</span>
+                <span class="value">${(sensor.rain || 0).toFixed(1)}%</span>
+            </div>
+            <div class="data-item">
+                <span class="label">Tilt:</span>
+                <span class="value">${(sensor.tilt || 0).toFixed(1)}°</span>
+            </div>
+            <div class="data-item">
+                <span class="label">Light:</span>
+                <span class="value">${Math.round(sensor.light || 0)} lux</span>
+            </div>
+        </div>
+        <div class="sensor-footer" style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+            Last updated: ${sensor.timestamp || 'Unknown'}
+        </div>
+    `;
+    
+    return card;
+}
+
+function selectSensor(sensor) {
+    selectedSensorNode = sensor.nodeName;
+    chartSection.classList.remove('hidden');
+    chartTitle.textContent = `Real-time Data: ${sensor.nodeName}`;
+    
+    // Scroll to chart
+    chartSection.scrollIntoView({ behavior: 'smooth' });
+    
+    // Initialize chart if needed
+    if (!sensorChart) {
+        initializeChart();
     }
+    
+    updateChart(sensor);
+}
+
+function updateSensorHistory(sensor) {
+    const name = sensor.nodeName;
+    if (!sensorHistory[name]) {
+        sensorHistory[name] = {
+            soilMoisture: [],
+            rain: [],
+            light: [],
+            tilt: [],
+            timestamps: []
+        };
+    }
+    
+    const history = sensorHistory[name];
+    const time = new Date().toLocaleTimeString();
+    
+    history.timestamps.push(time);
+    history.soilMoisture.push(sensor.soilMoisture || 0);
+    history.rain.push(sensor.rain || 0);
+    history.light.push(sensor.light || 0);
+    history.tilt.push(sensor.tilt || 0);
+    
+    // Keep last 20 points
+    if (history.timestamps.length > 20) {
+        history.timestamps.shift();
+        history.soilMoisture.shift();
+        history.rain.shift();
+        history.light.shift();
+        history.tilt.shift();
+    }
+}
+
+function updateChart(sensor) {
+    if (!sensorChart || !selectedSensorNode) return;
+    
+    const history = sensorHistory[selectedSensorNode];
+    if (!history) return;
+    
+    sensorChart.data.labels = history.timestamps;
+    sensorChart.data.datasets[0].data = history.soilMoisture;
+    sensorChart.data.datasets[1].data = history.rain;
+    sensorChart.data.datasets[2].data = history.light;
+    sensorChart.data.datasets[3].data = history.tilt;
+    
+    sensorChart.update();
 }
 
 function startUptimeCounter() {
@@ -864,7 +544,7 @@ function startUptimeCounter() {
     }, 1000);
 }
 
-// Chart initialization and updates
+// Chart initialization
 function initializeChart() {
     const ctx = document.getElementById('sensorChart');
     if (!ctx) return;
@@ -877,83 +557,48 @@ function initializeChart() {
                 {
                     label: 'Soil Moisture (%)',
                     data: [],
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderColor: '#588157', // Fern Green
+                    backgroundColor: 'rgba(88, 129, 87, 0.1)',
                     borderWidth: 3,
-                    pointRadius: 4,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: '#10b981',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
                     tension: 0.4,
                     yAxisID: 'y',
-                    fill: true,
-                    spanGaps: false
+                    fill: true
                 },
                 {
                     label: 'Rain (%)',
                     data: [],
-                    borderColor: '#059669',
-                    backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                    borderColor: '#3A5A40', // Hunter Green
+                    backgroundColor: 'rgba(58, 90, 64, 0.1)',
                     borderWidth: 3,
-                    pointRadius: 4,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: '#059669',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
                     tension: 0.4,
                     yAxisID: 'y',
-                    fill: true,
-                    spanGaps: false
+                    fill: true
                 },
                 {
                     label: 'Light (lux)',
                     data: [],
-                    borderColor: '#d97706',
+                    borderColor: '#d97706', // Accent
                     backgroundColor: 'rgba(217, 119, 6, 0.1)',
                     borderWidth: 3,
-                    pointRadius: 4,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: '#d97706',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
                     tension: 0.4,
                     yAxisID: 'y1',
-                    fill: true,
-                    spanGaps: false
+                    fill: true
                 },
                 {
                     label: 'Tilt (°)',
                     data: [],
-                    borderColor: '#ef4444',
+                    borderColor: '#ef4444', // Danger
                     backgroundColor: 'rgba(239, 68, 68, 0.1)',
                     borderWidth: 3,
-                    pointRadius: 4,
-                    pointHoverRadius: 8,
-                    pointBackgroundColor: '#ef4444',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
                     tension: 0.4,
                     yAxisID: 'y',
-                    fill: true,
-                    spanGaps: false
+                    fill: true
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: {
-                duration: 1000,
-                easing: 'easeInOutQuart',
-                delay: (context) => {
-                    let delay = 0;
-                    if (context.type === 'data' && context.mode === 'default') {
-                        delay = context.dataIndex * 100 + context.datasetIndex * 100;
-                    }
-                    return delay;
-                }
-            },
             interaction: {
                 mode: 'index',
                 intersect: false,
@@ -961,76 +606,16 @@ function initializeChart() {
             plugins: {
                 legend: {
                     position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        padding: 20,
-                        font: {
-                            size: 14,
-                            weight: '600'
-                        }
-                    }
-                },
-                title: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    borderColor: 'rgba(255, 255, 255, 0.2)',
-                    borderWidth: 1,
-                    cornerRadius: 8,
-                    displayColors: true,
-                    intersect: false,
-                    mode: 'index'
                 }
             },
             scales: {
-                x: {
-                    display: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)',
-                        drawBorder: false
-                    },
-                    ticks: {
-                        color: 'var(--text-secondary)',
-                        font: {
-                            size: 12
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Time',
-                        color: 'var(--text-primary)',
-                        font: {
-                            size: 14,
-                            weight: '600'
-                        }
-                    }
-                },
                 y: {
                     type: 'linear',
                     display: true,
                     position: 'left',
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)',
-                        drawBorder: false
-                    },
-                    ticks: {
-                        color: 'var(--text-secondary)',
-                        font: {
-                            size: 12
-                        }
-                    },
                     title: {
                         display: true,
-                        text: 'Soil Moisture (%), Rain (%), Tilt (°)',
-                        color: 'var(--text-primary)',
-                        font: {
-                            size: 14,
-                            weight: '600'
-                        }
+                        text: 'Percentage / Degrees'
                     }
                 },
                 y1: {
@@ -1039,22 +624,10 @@ function initializeChart() {
                     position: 'right',
                     grid: {
                         drawOnChartArea: false,
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    },
-                    ticks: {
-                        color: 'var(--text-secondary)',
-                        font: {
-                            size: 12
-                        }
                     },
                     title: {
                         display: true,
-                        text: 'Light (lux)',
-                        color: 'var(--text-primary)',
-                        font: {
-                            size: 14,
-                            weight: '600'
-                        }
+                        text: 'Light (lux)'
                     }
                 }
             }
@@ -1062,26 +635,8 @@ function initializeChart() {
     });
 }
 
-function updateChart() {
-    if (!sensorChart) return;
-
-    const labels = sensorData.soilMoisture.map(item => item.time);
-
-    sensorChart.data.labels = labels;
-    sensorChart.data.datasets[0].data = sensorData.soilMoisture.map(item => item.value);
-    sensorChart.data.datasets[1].data = sensorData.rain.map(item => item.value);
-    sensorChart.data.datasets[2].data = sensorData.light.map(item => item.value);
-    sensorChart.data.datasets[3].data = sensorData.tilt.map(item => item.value);
-
-    // Smooth animation for new data points
-    sensorChart.update('active');
-}
-
-// Export functions for potential external use
+// Export functions
 window.IoTDashboard = {
     connectFirebase,
-    disconnectFirebase,
-    updateSensorData,
-    getSensorStatus,
-    showNotification
+    disconnectFirebase
 };

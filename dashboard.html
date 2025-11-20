@@ -154,127 +154,37 @@
         <div class="content">
           <!-- Overview Section -->
           <section id="overview" class="content-section active">
-            <div class="overview-grid">
-              <!-- Critical Sensors -->
-              <div class="sensor-card critical" id="soilMoistureCard">
-                <div class="sensor-header">
-                  <div class="sensor-icon">
-                    <i class="fas fa-tint"></i>
-                  </div>
-                  <div class="sensor-info">
-                    <h3>Soil Moisture</h3>
-                    <div id="soilMoistureStatus" class="sensor-status normal">
-                      <i class="fas fa-circle"></i>
-                      <span class="status-text">Normal</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="sensor-value">
-                  <span id="soilMoistureValue">--</span>
-                  <span class="unit">%</span>
-                </div>
-                <div class="sensor-range">
-                  <span>Optimal: 20-80%</span>
-                </div>
+            <div class="section-header">
+              <h2>Sensor Nodes</h2>
+              <div class="filter-controls">
+                <button class="filter-btn active" data-filter="All">All</button>
+                <button class="filter-btn" data-filter="Low">Low Risk</button>
+                <button class="filter-btn" data-filter="Medium">
+                  Medium Risk
+                </button>
+                <button class="filter-btn" data-filter="High">High Risk</button>
               </div>
+            </div>
 
-              <div class="sensor-card critical" id="rainCard">
-                <div class="sensor-header">
-                  <div class="sensor-icon">
-                    <i class="fas fa-cloud-rain"></i>
-                  </div>
-                  <div class="sensor-info">
-                    <h3>Rain Level</h3>
-                    <div id="rainStatus" class="sensor-status normal">
-                      <i class="fas fa-circle"></i>
-                      <span class="status-text">Normal</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="sensor-value">
-                  <span id="rainValue">--</span>
-                  <span class="unit">%</span>
-                </div>
-                <div class="sensor-range">
-                  <span>Alert: >30%</span>
-                </div>
-              </div>
-
-              <div class="sensor-card important" id="lightCard">
-                <div class="sensor-header">
-                  <div class="sensor-icon">
-                    <i class="fas fa-sun"></i>
-                  </div>
-                  <div class="sensor-info">
-                    <h3>Light Level</h3>
-                    <div id="lightStatus" class="sensor-status normal">
-                      <i class="fas fa-circle"></i>
-                      <span class="status-text">Normal</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="sensor-value">
-                  <span id="lightValue">--</span>
-                  <span class="unit">lux</span>
-                </div>
-                <div class="sensor-range">
-                  <span>Range: 0-65535 lux</span>
-                </div>
-              </div>
-
-              <div class="sensor-card important" id="tiltCard">
-                <div class="sensor-header">
-                  <div class="sensor-icon">
-                    <i class="fas fa-angle-double-up"></i>
-                  </div>
-                  <div class="sensor-info">
-                    <h3>Tilt Angle</h3>
-                    <div id="tiltStatus" class="sensor-status normal">
-                      <i class="fas fa-circle"></i>
-                      <span class="status-text">Normal</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="sensor-value">
-                  <span id="tiltValue">--</span>
-                  <span class="unit">°</span>
-                </div>
-                <div class="sensor-range">
-                  <span>Alert: >20°</span>
-                </div>
-              </div>
-
-              <div class="sensor-card important" id="gyroMovementCard">
-                <div class="sensor-header">
-                  <div class="sensor-icon">
-                    <i class="fas fa-sync-alt"></i>
-                  </div>
-                  <div class="sensor-info">
-                    <h3>Gyroscope Movement</h3>
-                    <div id="gyroMovementStatus" class="sensor-status normal">
-                      <i class="fas fa-circle"></i>
-                      <span class="status-text">Normal</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="sensor-value">
-                  <span id="gyroMovementValue">--</span>
-                  <span class="unit">°/s</span>
-                </div>
-                <div class="sensor-range">
-                  <span>Alert: >5°/s</span>
-                </div>
+            <div id="sensorsGrid" class="overview-grid">
+              <!-- Sensors will be dynamically added here -->
+              <div class="loading-placeholder">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading sensors...</p>
               </div>
             </div>
 
             <!-- Real-time Chart -->
-            <div class="chart-section">
+            <div class="chart-section hidden" id="chartSection">
               <div class="chart-header">
-                <h3>Real-time Sensor Data</h3>
+                <h3 id="chartTitle">Real-time Sensor Data</h3>
                 <div class="chart-controls">
                   <button class="chart-btn active" data-range="30">30s</button>
                   <button class="chart-btn" data-range="60">1m</button>
                   <button class="chart-btn" data-range="300">5m</button>
+                  <button class="chart-btn close-chart-btn" id="closeChartBtn">
+                    <i class="fas fa-times"></i>
+                  </button>
                 </div>
               </div>
               <div class="chart-container">
