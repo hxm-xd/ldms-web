@@ -192,24 +192,32 @@ function initializeEventListeners() {
 
 function handleLogin(e) {
     e.preventDefault();
-    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
-    if (username === 'admin' && password === 'password') {
-        isAuthenticated = true;
-        localStorage.setItem('authenticated', 'true');
-        showDashboard();
-        connectFirebase();
-    } else {
-        showLoginError('Invalid username or password');
-    }
+    firebase.auth().signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            // Signed in
+            var user = userCredential.user;
+            console.log('User signed in:', user.email);
+            // onAuthStateChanged will handle the UI updates
+        })
+        .catch((error) => {
+            var errorCode = error.code;
+            var errorMessage = error.message;
+            console.error('Login error:', errorCode, errorMessage);
+            showLoginError(errorMessage);
+        });
 }
 
 function handleLogout() {
-    isAuthenticated = false;
-    localStorage.removeItem('authenticated');
-    disconnectFirebase();
-    showLogin();
+    firebase.auth().signOut().then(() => {
+        // Sign-out successful.
+        // onAuthStateChanged will handle the UI updates
+    }).catch((error) => {
+        // An error happened.
+        console.error('Logout error:', error);
+    });
 }
 
 function handleNavigation(e) {
@@ -273,14 +281,20 @@ function handleChartRangeChange(e) {
 }
 
 function checkAuthentication() {
-    const authenticated = localStorage.getItem('authenticated');
-    if (authenticated === 'true') {
-        isAuthenticated = true;
-        showDashboard();
-        connectFirebase();
-    } else {
-        showLogin();
-    }
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            // User is signed in, see docs for a list of available properties
+            // https://firebase.google.com/docs/reference/js/firebase.User
+            isAuthenticated = true;
+            showDashboard();
+            connectFirebase();
+        } else {
+            // User is signed out
+            isAuthenticated = false;
+            disconnectFirebase();
+            showLogin();
+        }
+    });
 }
 
 function toggleTheme() {
@@ -334,7 +348,7 @@ function showLogin() {
     dashboard.classList.add('hidden');
     loginPage.classList.remove('hidden');
     loginError.style.display = 'none';
-    document.getElementById('username').value = '';
+    document.getElementById('email').value = '';
     document.getElementById('password').value = '';
 }
 
