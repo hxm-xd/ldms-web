@@ -25,6 +25,19 @@
     ></script>
   </head>
   <body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+      <div class="loading-content">
+        <img
+          src="favicon.svg"
+          alt="Loading..."
+          class="loading-logo rotate-animation"
+        />
+        <h2>Welcome to LandBud</h2>
+        <p>Loading experience...</p>
+      </div>
+    </div>
+
     <!-- Nature Background Animation -->
     <div class="background-animation">
       <div class="leaf"></div>
@@ -38,7 +51,7 @@
 
     <nav class="navbar">
       <div class="logo">
-        <i class="fas fa-leaf"></i>
+        <img src="favicon.svg" alt="LandBud Logo" class="nav-logo" />
         <a href="#hero" style="text-decoration: none; color: ghostwhite"
           ><span>LandBud</span></a
         >
@@ -326,7 +339,10 @@
 
     <footer id="contact">
       <div class="footer-content">
-        <div class="footer-logo"><i class="fas fa-leaf"></i> LDMS</div>
+        <div class="footer-logo">
+          <img src="favicon.ico" alt="LandBud Logo" class="footer-logo-img" />
+          LDMS
+        </div>
         <p>Empowering communities with early warning systems.</p>
         <div class="social-links">
           <a href="https://github.com/hxm-xd/ldms-web"
@@ -369,6 +385,14 @@
     </div>
 
     <script>
+      // Loading Screen Logic
+      window.addEventListener("load", () => {
+        const loadingScreen = document.getElementById("loadingScreen");
+        setTimeout(() => {
+          loadingScreen.classList.add("hidden");
+        }, 1000);
+      });
+
       const observer = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
