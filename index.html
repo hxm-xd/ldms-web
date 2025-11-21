@@ -18,6 +18,11 @@
       href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap"
       rel="stylesheet"
     />
+    <!-- Model Viewer Script -->
+    <script
+      type="module"
+      src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"
+    ></script>
   </head>
   <body>
     <!-- Nature Background Animation -->
@@ -131,15 +136,18 @@
           </ul>
         </div>
         <div class="solution-visual">
-          <div class="device-mockup">
-            <div class="sensor-node">
-              <i class="fas fa-wifi signal-waves"></i>
-              <i class="fas fa-leaf"></i>
-            </div>
-            <div class="ground-layers">
-              <span></span><span></span><span></span>
-            </div>
-          </div>
+          <model-viewer
+            src="device-model.glb"
+            alt="A 3D model of the LandBud device"
+            auto-rotate
+            camera-controls
+            ar
+            shadow-intensity="1"
+            camera-orbit="45deg 55deg 2.5m"
+            field-of-view="30deg"
+            style="width: 100%; height: 400px; background-color: transparent"
+          >
+          </model-viewer>
         </div>
       </div>
     </section>
